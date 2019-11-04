@@ -12,6 +12,8 @@ class Bot {
         this.init1 = ((initBase ^ initVersion) ^ pVersion) << (Math.imul(initBase, initVersion ^ initBase));
         this.protocolVersion = pVersion;
         this.botNick = 'OP-Bots.com';
+        this.cellsIDs = new Array();
+        this.node = new Object();
         this.allNodes = [];
         this.WebK = 0;
         this.id = id;
@@ -71,6 +73,58 @@ class Bot {
         let offset = 0;
 
         switch (msg.readUInt8(offset++)) {
+            case 16: // nodes
+                let off = 1;
+                let eatRecordLength = msg.readUInt16LE(off);
+                off += 2;
+
+                for (let i = 0; i < eatRecordLength; i++) off += 8;
+
+                while (true) {
+                    this.node.id = msg.readUInt32LE(off);
+                    off += 4;
+
+                    if (this.node.id == 0) break;
+
+                    this.node.x = msg.readInt32LE(off);
+                    off += 4;
+
+                    this.node.y = msg.readInt32LE(off);
+                    off += 4;
+
+                    this.node.size = msg.readUInt16LE(off);
+                    off += 2;
+
+                    this.node.flags = msg.readUInt8(off++);
+
+                    if (this.node.flags & 2) off += 3;
+                    if (this.node.flags & 4) while (msg.readUInt8(off++) !== 0) { }
+                    if (this.node.flags & 8) while (msg.readUInt8(off++) !== 0) { }
+                }
+
+                let removeRecordLength = msg.readUInt16LE(off);
+                off += 2;
+
+                for (let i = 0; i < removeRecordLength; i++) {
+                    let removedEntityID = msg.readUInt32LE(off);
+                    off += 4;
+                    if (this.cellsIDs.includes(removedEntityID)) this.cellsIDs = this.cellsIDs.filter(x => x != removedEntityID);
+                }
+
+                if (this.isAlive && this.cellsIDs.length == 0) {
+                    console.log(`bot_${this.id}: Respawning`.cyan);
+                    this.isAlive = false;
+                    this.spawn();
+                }
+
+                break;
+
+            case 32:
+                console.log(`bot_${this.id}: Spawned`.green);
+                this.cellsIDs.push(msg.readUInt32LE(offset));
+                this.isAlive = true;
+                break;
+
             case 112: // protection 1
                 this.clientKey = this.hash(msg, offset);
                 var buf = new Buffer.alloc(this.clientKey.length + 2);
