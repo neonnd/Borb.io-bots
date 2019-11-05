@@ -5,7 +5,9 @@ const browser = new Browser();
 const sha1 = require('sha1');
 require('colour');
 
-const serverIP = 'ws://eu.borb.io:4501/?t=1';
+let serverIP = 'ws://eu.borb.io:4501/?t=1';
+let xPos = 0;
+let yPos = 0;
 
 class Bot {
     constructor(id, server, pVersion, initBase, initVersion) {
@@ -70,44 +72,45 @@ class Bot {
 
     async onMessage(msg) {
         msg = new Buffer.from(msg.data);
-        let offset = 0;
+        var offset = 0;
 
         switch (msg.readUInt8(offset++)) {
             case 16: // nodes
-                let off = 1;
-                let eatRecordLength = msg.readUInt16LE(off);
-                off += 2;
+                offset = 1;
 
-                for (let i = 0; i < eatRecordLength; i++) off += 8;
+                let eatRecordLength = msg.readUInt16LE(offset);
+                offset += 2;
+
+                for (let i = 0; i < eatRecordLength; i++) offset += 8;
 
                 while (true) {
-                    this.node.id = msg.readUInt32LE(off);
-                    off += 4;
+                    this.node.id = msg.readUInt32LE(offset);
+                    offset += 4;
 
                     if (this.node.id == 0) break;
 
-                    this.node.x = msg.readInt32LE(off);
-                    off += 4;
+                    this.node.x = msg.readInt32LE(offset);
+                    offset += 4;
 
-                    this.node.y = msg.readInt32LE(off);
-                    off += 4;
+                    this.node.y = msg.readInt32LE(offset);
+                    offset += 4;
 
-                    this.node.size = msg.readUInt16LE(off);
-                    off += 2;
+                    this.node.size = msg.readUInt16LE(offset);
+                    offset += 2;
 
-                    this.node.flags = msg.readUInt8(off++);
+                    this.node.flags = msg.readUInt8(offset++);
 
-                    if (this.node.flags & 2) off += 3;
-                    if (this.node.flags & 4) while (msg.readUInt8(off++) !== 0) { }
-                    if (this.node.flags & 8) while (msg.readUInt8(off++) !== 0) { }
+                    if (this.node.flags & 2) offset += 3;
+                    if (this.node.flags & 4) while (msg.readUInt8(offset++) !== 0) { }
+                    if (this.node.flags & 8) while (msg.readUInt8(offset++) !== 0) { }
                 }
 
-                let removeRecordLength = msg.readUInt16LE(off);
-                off += 2;
+                let removeRecordLength = msg.readUInt16LE(offset);
+                offset += 2;
 
                 for (let i = 0; i < removeRecordLength; i++) {
-                    let removedEntityID = msg.readUInt32LE(off);
-                    off += 4;
+                    let removedEntityID = msg.readUInt32LE(offset);
+                    offset += 4;
                     if (this.cellsIDs.includes(removedEntityID)) this.cellsIDs = this.cellsIDs.filter(x => x != removedEntityID);
                 }
 
@@ -116,10 +119,32 @@ class Bot {
                     this.isAlive = false;
                     this.spawn();
                 }
-
                 break;
 
-            case 32:
+            case 64: // border
+                offset = 1;
+
+                this.node.left = msg.readDoubleLE(offset);
+                offset += 8;
+
+                this.node.top = msg.readDoubleLE(offset);
+                offset += 8;
+
+                this.node.right = msg.readDoubleLE(offset);
+                offset += 8;
+
+                this.node.bottom = msg.readDoubleLE(offset);
+                offset += 8;
+
+                this.node.width = this.node.right - this.node.left;
+                this.node.height = this.node.bottom - this.node.top;
+                this.node.offsetX = (this.node.left + this.node.right) / 2;
+                this.node.offsetY = (this.node.top + this.node.bottom) / 2;
+
+                if (this.isAlive && xPos || yPos) this.moveTo(xPos + this.node.offsetX, yPos + this.node.offsetY);
+                break;
+
+            case 32: // cell id
                 console.log(`bot_${this.id}: Spawned`.green);
                 this.cellsIDs.push(msg.readUInt32LE(offset));
                 this.isAlive = true;
