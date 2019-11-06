@@ -208,8 +208,7 @@ class Bot {
 
     decodeString(msg, offset) {
         let x = '', d;
-        while ((d = msg.readUInt8(offset)) != 0) {
-            offset += 1
+        while ((d = msg.readUInt8(offset++)) != 0) {
             x += String.fromCharCode(d);
         }
         return x;
