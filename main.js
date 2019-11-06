@@ -5,13 +5,14 @@ const browser = new Browser();
 const sha1 = require('sha1');
 require('colour');
 
-let serverIP = 'ws://eu.borb.io:4501/?t=1';
+let serverIP = 'wss://eu.borb.io:4501/?t=1';
 let xPos = 0;
 let yPos = 0;
 
 class Bot {
     constructor(id, server, pVersion, initBase, initVersion) {
-        this.init1 = ((initBase ^ initVersion) ^ pVersion) << (Math.imul(initBase, initVersion ^ initBase));
+        this.init = ((initBase ^ initVersion) ^ pVersion) << (Math.imul(initBase, initVersion ^ initBase));
+        if (server.startsWith('wss')) server = server.replace(/wss/, 'ws');
         this.protocolVersion = pVersion;
         this.bypassCompression = true;
         this.botNick = 'OP-Bots.com';
@@ -64,7 +65,8 @@ class Bot {
         buf = new Buffer.alloc(5);
 
         buf.writeUInt8(255, 0);
-        buf.writeUInt32LE(this.init1, 1);
+        buf.writeUInt32LE(this.init, 1);
+
         this.send(buf);
     }
 
