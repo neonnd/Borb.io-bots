@@ -13,6 +13,7 @@ class Bot {
     constructor(id, server, pVersion, initBase, initVersion) {
         this.init1 = ((initBase ^ initVersion) ^ pVersion) << (Math.imul(initBase, initVersion ^ initBase));
         this.protocolVersion = pVersion;
+        this.bypassCompression = true;
         this.botNick = 'OP-Bots.com';
         this.cellsIDs = new Array();
         this.node = new Object();
@@ -34,10 +35,15 @@ class Bot {
     send(msg, encryption) {
         if (this.ws && this.ws.readyState == WebSocket.OPEN) {
             if (encryption) {
+                if (this.bypassCompression) {
+                    this.ws.send(this.dring(msg));
+                    this.WebK = this.rotate(this.WebK);
+                    return;
+                }
                 let compressedData = Snappy.compressSync(msg);
                 let tmp = new Uint8Array([117]);
-                let buf = this.appendBuffer(tmp.buffer, compressedData.buffer);
-                this.ws.send(this.dring(new Uint8Array(buf)));
+                let buf = this.appendBuffer(tmp, compressedData);
+                this.ws.send(this.dring(buf));
                 this.WebK = this.rotate(this.WebK);
                 return;
             }
@@ -211,7 +217,7 @@ class Bot {
         let tmp = new Uint8Array(buf.byteLength + data.byteLength);
         tmp.set(new Uint8Array(buf), 0);
         tmp.set(new Uint8Array(data), buf.byteLength);
-        return tmp.buffer;
+        return tmp;
     }
 
     moveTo(x, y) {
@@ -226,34 +232,28 @@ class Bot {
     }
 
     dring(msg) {
-        msg = new Uint8Array(msg.buffer);
+        msg = new Uint8Array(msg);
 
-        let ArrayB = new Uint8Array(msg.length);
+        let buf = new Uint8Array(msg.length);
 
         let keyBytes = [
-
             (this.WebK & 255),
             (this.WebK >>> 8) & 255,
             (this.WebK >>> 16) & 255,
             (this.WebK >>> 24) & 255
-
         ];
 
         let keyBytes2 = [
-
             (keyBytes[0] << 2) & 255,
             (keyBytes[1] << 2) & 255,
             (keyBytes[2] << 2) & 255,
-
         ];
 
         for (let i = 0; i < msg.length; i++) {
-
-            ArrayB[i] = (msg[i] ^ keyBytes[i % 4]) ^ keyBytes2[i % 3];
-
+            buf[i] = (msg[i] ^ keyBytes[i % 4]) ^ keyBytes2[i % 3];
         };
 
-        return ArrayB.buffer;
+        return buf;
     }
 
     rotate(key) {
