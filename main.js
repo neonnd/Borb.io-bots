@@ -80,12 +80,10 @@ class Bot {
 
     async onMessage(msg) {
         msg = new Buffer.from(msg.data);
-        var offset = 0;
+        let offset = 0;
 
         switch (msg.readUInt8(offset++)) {
             case 16: // nodes
-                offset = 1;
-
                 let eatRecordLength = msg.readUInt16LE(offset);
                 offset += 2;
 
@@ -130,8 +128,6 @@ class Bot {
                 break;
 
             case 64: // border
-                offset = 1;
-
                 this.node.left = msg.readDoubleLE(offset);
                 offset += 8;
 
